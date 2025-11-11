@@ -74,12 +74,13 @@ class RollaBandSDK {
     await _bandPairing.pairDevice(uuid);
   }
 
-  /// Syncs heart rate data from the band to the backend.
-  /// Follows the main app's sync flow:
+  /// Syncs heart rate data from the band.
+  /// Flow:
   /// 1. Ensure device is connected (required for BLE communication)
-  /// 2. Get last sync timestamps from backend
-  /// 3. Fetch new data from band since last timestamps
-  /// 4. Upload data to backend with updated timestamps
+  /// 2. Get last sync timestamps from backend (if available)
+  /// 3. Fetch new data from band since last timestamps (or from start of today if no timestamps)
+  /// 4. Upload data to backend with updated timestamps (if backend is configured)
+  /// Returns the heart rate data fetched from the band
   Future<List<HeartRateData>> syncHeartRate(String uuid) async {
     // First, ensure device is connected (required for reading data from band)
     print('[SDK] Checking if device is connected for sync...');
@@ -91,7 +92,7 @@ class RollaBandSDK {
         throw Exception('Device not connected. Please ensure the band is powered on and in range.');
       }
       // Wait for connection to stabilize
-      await Future.delayed(const Duration(milliseconds: 1000));
+      await Future.delayed(const Duration(milliseconds: 2000));
       
       // Verify connection
       final newState = await _bluetoothManager.checkConnectionState(uuid);
@@ -112,13 +113,18 @@ class RollaBandSDK {
     
     print('[SDK] Default timestamp (start of day UTC): $defaultFromMs (${dayStartUtc.toIso8601String()})');
 
-    // 1. Get last sync timestamps from backend
+    // 1. Get last sync timestamps from backend (if available)
     print('[SDK] Fetching timestamps from backend...');
-    final BandTimestamps timestamps = await _backendClient.getBandTimestamps();
-    print('[SDK] Received timestamps:');
-    print('[SDK]   activityHrLastBlock: ${timestamps.activityHrLastBlock}');
-    print('[SDK]   activityHrLastEntry: ${timestamps.activityHrLastEntry}');
-    print('[SDK]   passiveHrLastTimestamp: ${timestamps.passiveHrLastTimestamp}');
+    BandTimestamps timestamps = const BandTimestamps();
+    try {
+      timestamps = await _backendClient.getBandTimestamps();
+      print('[SDK] Received timestamps:');
+      print('[SDK]   activityHrLastBlock: ${timestamps.activityHrLastBlock}');
+      print('[SDK]   activityHrLastEntry: ${timestamps.activityHrLastEntry}');
+      print('[SDK]   passiveHrLastTimestamp: ${timestamps.passiveHrLastTimestamp}');
+    } catch (e) {
+      print('[SDK] Could not fetch timestamps from backend (will use defaults): $e');
+    }
     
     final int aBlock = timestamps.activityHrLastBlock ?? defaultFromMs;
     final int aEntry = timestamps.activityHrLastEntry ?? defaultFromMs;
@@ -144,16 +150,20 @@ class RollaBandSDK {
     print('[SDK]   activityLastEntry: ${syncResult.activityLastSyncedEntryTimestamp}');
     print('[SDK]   passiveLastTimestamp: ${syncResult.passiveLastSyncedTimestamp}');
 
-    // 3. Upload to backend if there's new data
+    // 3. Upload to backend if there's new data (skip if backend not configured or fails)
     if (syncResult.heartRates.isNotEmpty) {
-      print('[SDK] Uploading ${syncResult.heartRates.length} entries to backend...');
-      await _backendClient.sendHeartRate(
-        data: syncResult.heartRates,
-        activityLastBlock: syncResult.activityLastSyncedBlockTimestamp,
-        activityLastEntry: syncResult.activityLastSyncedEntryTimestamp,
-        passiveLastTimestamp: syncResult.passiveLastSyncedTimestamp,
-      );
-      print('[SDK] ✓ Upload successful');
+      try {
+        print('[SDK] Uploading ${syncResult.heartRates.length} entries to backend...');
+        await _backendClient.sendHeartRate(
+          data: syncResult.heartRates,
+          activityLastBlock: syncResult.activityLastSyncedBlockTimestamp,
+          activityLastEntry: syncResult.activityLastSyncedEntryTimestamp,
+          passiveLastTimestamp: syncResult.passiveLastSyncedTimestamp,
+        );
+        print('[SDK] ✓ Upload successful');
+      } catch (e) {
+        print('[SDK] ⚠ Upload to backend failed (continuing with local data): $e');
+      }
     } else {
       print('[SDK] No new data to upload');
     }
