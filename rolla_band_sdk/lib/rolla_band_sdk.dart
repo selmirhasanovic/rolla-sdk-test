@@ -7,6 +7,7 @@ export 'src/health_data_sync.dart';
 export 'src/backend_client.dart';
 export 'src/models/bluetooth_device.dart';
 export 'src/models/heart_rate_data.dart';
+export 'src/models/band_timestamps.dart';
 
 import 'dart:async';
 import 'package:rolla_band_sdk/config/sdk_config.dart';
@@ -17,6 +18,7 @@ import 'package:rolla_band_sdk/src/health_data_sync.dart';
 import 'package:rolla_band_sdk/src/backend_client.dart';
 import 'package:rolla_band_sdk/src/models/bluetooth_device.dart';
 import 'package:rolla_band_sdk/src/models/heart_rate_data.dart';
+import 'package:rolla_band_sdk/src/models/band_timestamps.dart';
 
 class RollaBandSDK {
   static RollaBandSDK? _instance;
@@ -70,12 +72,43 @@ class RollaBandSDK {
     await _bandPairing.pairDevice(uuid);
   }
 
+  /// Syncs heart rate data from the band to the backend.
+  /// Follows the main app's sync flow:
+  /// 1. Get last sync timestamps from backend
+  /// 2. Fetch new data from band since last timestamps
+  /// 3. Upload data to backend with updated timestamps
   Future<List<HeartRateData>> syncHeartRate(String uuid) async {
-    return await _healthDataSync.syncHeartRate(uuid);
-  }
+    // Get default timestamp (start of current day in UTC)
+    final DateTime nowLocal = DateTime.now();
+    final DateTime localMidnight = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    final DateTime dayStartUtc = localMidnight.toUtc();
+    final int defaultFromMs = dayStartUtc.millisecondsSinceEpoch;
 
-  Future<void> sendHeartRateToBackend(List<HeartRateData> data) async {
-    await _backendClient.sendHeartRate(data);
+    // 1. Get last sync timestamps from backend
+    final BandTimestamps timestamps = await _backendClient.getBandTimestamps();
+    final int aBlock = timestamps.activityHrLastBlock ?? defaultFromMs;
+    final int aEntry = timestamps.activityHrLastEntry ?? defaultFromMs;
+    final int pTs = timestamps.passiveHrLastTimestamp ?? defaultFromMs;
+
+    // 2. Fetch new data from band since last timestamps
+    final syncResult = await _healthDataSync.syncHeartRate(
+      uuid,
+      activityLastSyncedBlockTimestamp: aBlock,
+      activityLastSyncedEntryTimestamp: aEntry,
+      passiveLastSyncedTimestamp: pTs,
+    );
+
+    // 3. Upload to backend if there's new data
+    if (syncResult.heartRates.isNotEmpty) {
+      await _backendClient.sendHeartRate(
+        data: syncResult.heartRates,
+        activityLastBlock: syncResult.activityLastSyncedBlockTimestamp,
+        activityLastEntry: syncResult.activityLastSyncedEntryTimestamp,
+        passiveLastTimestamp: syncResult.passiveLastSyncedTimestamp,
+      );
+    }
+
+    return syncResult.heartRates;
   }
 
   Future<List<HeartRateData>> getHeartRateFromBackend() async {

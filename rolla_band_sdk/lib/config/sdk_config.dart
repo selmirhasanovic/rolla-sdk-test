@@ -1,10 +1,10 @@
 class RollaBandSDKConfig {
   final String backendBaseUrl;
-  final String? accessToken;
+  final String accessToken;
 
   RollaBandSDKConfig({
     required this.backendBaseUrl,
-    this.accessToken,
+    required this.accessToken,
   });
 }
 
