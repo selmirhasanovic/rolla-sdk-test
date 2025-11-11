@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:rolla_band_sdk/src/models/heart_rate_data.dart';
 import 'package:rolla_band_sdk/src/models/band_timestamps.dart';
@@ -23,17 +24,20 @@ class BackendClient {
 
   Future<void> storeBand(String macAddress) async {
     try {
-      print('[BackendClient] POST /api/store_user_band with mac_address: $macAddress');
-      print('[BackendClient] Base URL: $_baseUrl');
-      print('[BackendClient] Content-Type: ${Headers.formUrlEncodedContentType}');
+      debugPrint('[BackendClient] POST /api/store_user_band with mac_address: $macAddress');
+      debugPrint('[BackendClient] Base URL: $_baseUrl');
+      debugPrint('[BackendClient] Content-Type: ${Headers.formUrlEncodedContentType}');
+      debugPrint('[BackendClient] Full URL will be: $_baseUrl/api/store_user_band');
+      debugPrint('[BackendClient] Request data: {mac_address: $macAddress}');
+      debugPrint('[BackendClient] Headers: ${_dio.options.headers}');
       
       final Response<dynamic> response = await _dio.post<dynamic>(
         '/api/store_user_band',
         data: {'mac_address': macAddress},
       );
       final dynamic data = response.data;
-      print('[BackendClient] Response status: ${response.statusCode}');
-      print('[BackendClient] Response data: $data');
+      debugPrint('[BackendClient] Response status: ${response.statusCode}');
+      debugPrint('[BackendClient] Response data: $data');
       
       if (data is Map && data['success'] == true) {
         print('[BackendClient] ✓ Band stored successfully');
@@ -43,21 +47,23 @@ class BackendClient {
       final reason = (data is Map ? (data['reason'] as String?) : null) ?? 'Store band failed';
       throw Exception(reason);
     } on DioException catch (e) {
-      print('[BackendClient] DioException storing band: ${e.message}');
-      print('[BackendClient] Error type: ${e.type}');
-      print('[BackendClient] Request path: ${e.requestOptions.path}');
-      print('[BackendClient] Request data: ${e.requestOptions.data}');
-      print('[BackendClient] Request headers: ${e.requestOptions.headers}');
-      print('[BackendClient] Full request URL: ${e.requestOptions.uri}');
+      debugPrint('[BackendClient] DioException storing band: ${e.message}');
+      debugPrint('[BackendClient] Error type: ${e.type}');
+      debugPrint('[BackendClient] Request path: ${e.requestOptions.path}');
+      debugPrint('[BackendClient] Request data: ${e.requestOptions.data}');
+      debugPrint('[BackendClient] Request headers: ${e.requestOptions.headers}');
+      debugPrint('[BackendClient] Full request URL: ${e.requestOptions.uri}');
+      debugPrint('[BackendClient] Request method: ${e.requestOptions.method}');
+      debugPrint('[BackendClient] Request content type: ${e.requestOptions.contentType}');
       final Response<dynamic>? r = e.response;
       if (r != null) {
-        print('[BackendClient] Response status: ${r.statusCode}');
-        print('[BackendClient] Response data: ${r.data}');
-        print('[BackendClient] Response headers: ${r.headers}');
+        debugPrint('[BackendClient] Response status: ${r.statusCode}');
+        debugPrint('[BackendClient] Response data: ${r.data}');
+        debugPrint('[BackendClient] Response headers: ${r.headers}');
         if (r.data is Map) {
           final Map<String, dynamic> data = r.data as Map<String, dynamic>;
           final reason = (data['reason'] as String?) ?? 'Store band failed';
-          print('[BackendClient] Extracted reason: $reason');
+          debugPrint('[BackendClient] Extracted reason: $reason');
           throw Exception(reason);
         }
         // If response is not a Map, include the raw response in the error
@@ -65,7 +71,7 @@ class BackendClient {
       }
       throw Exception('Store band failed: ${e.message}');
     } catch (e) {
-      print('[BackendClient] Unexpected error: $e');
+      debugPrint('[BackendClient] Unexpected error: $e');
       rethrow;
     }
   }
