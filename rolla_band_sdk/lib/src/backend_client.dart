@@ -26,7 +26,7 @@ class BackendClient {
         return BandTimestamps.fromResponse(data as Map<String, dynamic>);
       }
       throw Exception('Failed to load band timestamps: ${response.statusCode}');
-    } on DioException catch (e) {
+    } on DioError catch (e) {
       final Response<dynamic>? r = e.response;
       if (r != null && r.data is Map) {
         final Map<String, dynamic> data = r.data as Map<String, dynamic>;
