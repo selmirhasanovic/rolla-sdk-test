@@ -76,10 +76,32 @@ class RollaBandSDK {
 
   /// Syncs heart rate data from the band to the backend.
   /// Follows the main app's sync flow:
-  /// 1. Get last sync timestamps from backend
-  /// 2. Fetch new data from band since last timestamps
-  /// 3. Upload data to backend with updated timestamps
+  /// 1. Ensure device is connected (required for BLE communication)
+  /// 2. Get last sync timestamps from backend
+  /// 3. Fetch new data from band since last timestamps
+  /// 4. Upload data to backend with updated timestamps
   Future<List<HeartRateData>> syncHeartRate(String uuid) async {
+    // First, ensure device is connected (required for reading data from band)
+    print('[SDK] Checking if device is connected for sync...');
+    final connectionState = await _bluetoothManager.checkConnectionState(uuid);
+    if (connectionState != pigeon.ConnectionState.connected) {
+      print('[SDK] Device not connected, attempting to connect...');
+      final connected = await _bluetoothManager.connectToDevice(uuid);
+      if (!connected) {
+        throw Exception('Device not connected. Please ensure the band is powered on and in range.');
+      }
+      // Wait for connection to stabilize
+      await Future.delayed(const Duration(milliseconds: 1000));
+      
+      // Verify connection
+      final newState = await _bluetoothManager.checkConnectionState(uuid);
+      if (newState != pigeon.ConnectionState.connected) {
+        throw Exception('Failed to connect to device. Please try again.');
+      }
+      print('[SDK] Device connected successfully');
+    } else {
+      print('[SDK] Device already connected');
+    }
     print('[SDK] Starting heart rate sync for device: $uuid');
     
     // Get default timestamp (start of current day in UTC)
