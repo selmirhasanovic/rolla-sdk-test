@@ -20,6 +20,10 @@ import 'package:rolla_band_sdk/src/models/bluetooth_device.dart';
 import 'package:rolla_band_sdk/src/models/heart_rate_data.dart';
 import 'package:rolla_band_sdk/src/models/band_timestamps.dart';
 
+void _unawaited(Future<void> future) {
+  // Helper to mark futures as intentionally unawaited
+}
+
 class RollaBandSDK {
   static RollaBandSDK? _instance;
   
@@ -155,27 +159,21 @@ class RollaBandSDK {
     print('[SDK]   activityLastEntry: ${syncResult.activityLastSyncedEntryTimestamp}');
     print('[SDK]   passiveLastTimestamp: ${syncResult.passiveLastSyncedTimestamp}');
 
-    // 3. Upload to backend if there's new data (skip if backend not configured or fails)
-    // This is completely optional - we return the data regardless
+    // 3. Upload to backend if there's new data (completely optional - skip silently if fails)
+    // We always return the data regardless of backend upload success/failure
     if (syncResult.heartRates.isNotEmpty) {
-      try {
-        print('[SDK] Attempting to upload ${syncResult.heartRates.length} entries to backend (optional)...');
-        await _backendClient.sendHeartRate(
+      // Fire-and-forget backend upload - don't wait for it
+      _unawaited(
+        _backendClient.sendHeartRate(
           data: syncResult.heartRates,
           activityLastBlock: syncResult.activityLastSyncedBlockTimestamp,
           activityLastEntry: syncResult.activityLastSyncedEntryTimestamp,
           passiveLastTimestamp: syncResult.passiveLastSyncedTimestamp,
-        )
-            .timeout(const Duration(seconds: 5))
-            .catchError((e) {
+        ).timeout(const Duration(seconds: 5)).catchError((e) {
           print('[SDK] ⚠ Upload to backend failed (continuing with local data): $e');
-          return; // Continue without throwing
-        });
-        print('[SDK] ✓ Upload successful');
-      } catch (e) {
-        print('[SDK] ⚠ Upload to backend failed (continuing with local data): $e');
-        // Don't rethrow - we want to return the data regardless
-      }
+        }),
+      );
+      print('[SDK] Backend upload initiated (non-blocking)');
     } else {
       print('[SDK] No new data to upload');
     }
