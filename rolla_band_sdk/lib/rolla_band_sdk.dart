@@ -60,7 +60,6 @@ class RollaBandSDK {
   GetBatteryLevel get getBatteryLevel => sdkGetIt<GetBatteryLevel>();
   GetFirmwareVersion get getFirmwareVersion => sdkGetIt<GetFirmwareVersion>();
   GetSerialNumber get getSerialNumber => sdkGetIt<GetSerialNumber>();
-  DevicesStream get devicesStream => sdkGetIt<DevicesStream>();
 
   SyncSteps get syncSteps => sdkGetIt<SyncSteps>();
   SyncHeartRate get syncHeartRate => sdkGetIt<SyncHeartRate>();
