@@ -1,22 +1,11 @@
 package com.rolla.band.sdk.hostImpl
 
 import app.rolla.bluetoothSdk.BleManager
-import app.rolla.bluetoothSdk.services.commands.data.SleepPhase
-import app.rolla.bluetoothSdk.services.data.HrvData
-import app.rolla.bluetoothSdk.services.data.SleepData
-import app.rolla.bluetoothSdk.services.data.StepsData
 import app.rolla.bluetoothSdk.services.data.TotalHeartRateData
 import app.rolla.bluetoothSdk.utils.extensions.log
-import com.rolla.band.sdk.generated.RollaBandHRV
-import com.rolla.band.sdk.generated.RollaBandHRVSyncResponse
 import com.rolla.band.sdk.generated.RollaBandHealthDataHostApi
 import com.rolla.band.sdk.generated.RollaBandHeartRate
 import com.rolla.band.sdk.generated.RollaBandHeartRateSyncResponse
-import com.rolla.band.sdk.generated.RollaBandSleepStage
-import com.rolla.band.sdk.generated.RollaBandSleepStageValue
-import com.rolla.band.sdk.generated.RollaBandSleepSyncResponse
-import com.rolla.band.sdk.generated.RollaBandStep
-import com.rolla.band.sdk.generated.RollaBandStepsSyncResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
