@@ -21,7 +21,33 @@ class BackendClient {
         ));
 
   Future<void> storeBand(String macAddress) async {
-    await _dio.post('/api/store_user_band', data: {'mac_address': macAddress});
+    try {
+      print('[BackendClient] POST /api/store_user_band with mac_address: $macAddress');
+      final Response<dynamic> response = await _dio.post<dynamic>(
+        '/api/store_user_band',
+        data: {'mac_address': macAddress},
+      );
+      final dynamic data = response.data;
+      print('[BackendClient] Response status: ${response.statusCode}');
+      print('[BackendClient] Response data: $data');
+      
+      if (data is Map && data['success'] == true) {
+        print('[BackendClient] ✓ Band stored successfully');
+        return;
+      }
+      
+      final reason = (data is Map ? (data['reason'] as String?) : null) ?? 'Store band failed';
+      throw Exception(reason);
+    } on DioError catch (e) {
+      print('[BackendClient] DioError storing band: ${e.message}');
+      final Response<dynamic>? r = e.response;
+      if (r != null && r.data is Map) {
+        final Map<String, dynamic> data = r.data as Map<String, dynamic>;
+        final reason = (data['reason'] as String?) ?? 'Store band failed';
+        throw Exception(reason);
+      }
+      throw Exception('Store band failed: ${r?.statusCode}');
+    }
   }
 
   Future<BandTimestamps> getBandTimestamps() async {

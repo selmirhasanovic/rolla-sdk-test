@@ -49,6 +49,7 @@ class RollaBandSDK {
     _bandPairing = BandPairing(
       bandApi: pigeon.BandCommandHostAPI(),
       backendClient: _backendClient,
+      bluetoothApi: pigeon.RollaBluetoothHostApi(),
     );
     _healthDataSync = HealthDataSync(
       healthApi: pigeon.RollaBandHealthDataHostApi(),
