@@ -30,9 +30,6 @@ class BackendClient {
       final Response<dynamic> response = await _dio.post<dynamic>(
         '/api/store_user_band',
         data: {'mac_address': macAddress},
-        options: Options(
-          contentType: Headers.formUrlEncodedContentType,
-        ),
       );
       final dynamic data = response.data;
       print('[BackendClient] Response status: ${response.statusCode}');
