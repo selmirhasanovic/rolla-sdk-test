@@ -1,0 +1,30 @@
+name: rolla_band_sdk
+description: Flutter SDK for Rolla Band connectivity and health data synchronization
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.7.0
+  get_it: ^8.0.2
+  dartz: ^0.10.1
+  equatable: ^2.0.7
+  flutter_secure_storage: ^9.0.0
+  meta: ^1.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  pigeon: ^25.5.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.rolla.band.sdk
+        pluginClass: RollaBandSdkPlugin
+
