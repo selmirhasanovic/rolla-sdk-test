@@ -1,0 +1,25 @@
+name: rolla_band_sdk
+description: Rolla Band SDK for Flutter - Bluetooth connection, pairing, and health data sync
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  pigeon: ^25.5.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.rolla.band.sdk
+        pluginClass: RollaBandSdkPlugin
+
