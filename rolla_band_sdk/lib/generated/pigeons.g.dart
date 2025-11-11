@@ -799,6 +799,42 @@ class BandCommandHostAPI {
   }
 }
 
+/// API for native platforms to send band battery data to Flutter
+abstract class BandBatteryFlutterApi {
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  void onBatteryLevelReceived(int level);
+
+  static void setUp(BandBatteryFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    {
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.rolla_band_sdk.BandBatteryFlutterApi.onBatteryLevelReceived$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+          'Argument for dev.flutter.pigeon.rolla_band_sdk.BandBatteryFlutterApi.onBatteryLevelReceived was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final int? arg_level = (args[0] as int?);
+          assert(arg_level != null,
+              'Argument for dev.flutter.pigeon.rolla_band_sdk.BandBatteryFlutterApi.onBatteryLevelReceived was null, expected non-null int.');
+          try {
+            api.onBatteryLevelReceived(arg_level!);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+  }
+}
+
 /// API for Flutter to call native platform health data operations
 class RollaBandHealthDataHostApi {
   /// Constructor for [RollaBandHealthDataHostApi].  The [binaryMessenger] named argument is

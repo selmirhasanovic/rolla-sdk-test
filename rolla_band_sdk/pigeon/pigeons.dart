@@ -159,6 +159,12 @@ abstract interface class BandCommandHostAPI {
   int getBatteryLevel(String uuid);
 }
 
+/// API for native platforms to send band battery data to Flutter
+@FlutterApi()
+abstract interface class BandBatteryFlutterApi {
+  void onBatteryLevelReceived(int level);
+}
+
 /// API for Flutter to call native platform health data operations
 @HostApi()
 abstract interface class RollaBandHealthDataHostApi {
