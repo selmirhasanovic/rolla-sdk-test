@@ -1,8 +1,22 @@
 package com.rolla.band.sdk.hostImpl
 
+import app.rolla.bluetoothSdk.BleManager
+import app.rolla.bluetoothSdk.services.commands.data.SleepPhase
+import app.rolla.bluetoothSdk.services.data.HrvData
+import app.rolla.bluetoothSdk.services.data.SleepData
+import app.rolla.bluetoothSdk.services.data.StepsData
+import app.rolla.bluetoothSdk.services.data.TotalHeartRateData
+import app.rolla.bluetoothSdk.utils.extensions.log
+import com.rolla.band.sdk.generated.RollaBandHRV
+import com.rolla.band.sdk.generated.RollaBandHRVSyncResponse
 import com.rolla.band.sdk.generated.RollaBandHealthDataHostApi
 import com.rolla.band.sdk.generated.RollaBandHeartRate
 import com.rolla.band.sdk.generated.RollaBandHeartRateSyncResponse
+import com.rolla.band.sdk.generated.RollaBandSleepStage
+import com.rolla.band.sdk.generated.RollaBandSleepStageValue
+import com.rolla.band.sdk.generated.RollaBandSleepSyncResponse
+import com.rolla.band.sdk.generated.RollaBandStep
+import com.rolla.band.sdk.generated.RollaBandStepsSyncResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -10,13 +24,32 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// NOTE: This is a POC implementation. For production, integrate with bluetoothSdk module
 class RollaBandHealthDataHostApiImpl(
+    private val bleManager: BleManager,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) : RollaBandHealthDataHostApi {
 
-    // TODO: Inject BleManager from bluetoothSdk
-    // private val bleManager: BleManager
+    private val heartRateCallbacks: MutableMap<String, (Result<RollaBandHeartRateSyncResponse>) -> Unit> = mutableMapOf()
+
+    init {
+        scope.launch {
+            bleManager.getRollaBandHeartRateFlow().collect { heartRateData ->
+                withContext(Dispatchers.Main) {
+                    log("RollaBandHealthDataHostApiImpl", "Heart rate data: $heartRateData")
+                    val callback = heartRateCallbacks[heartRateData.uuid]
+                    if (callback != null) {
+                        callback(Result.success(convertToPigeonHeartRateData(heartRateData)))
+                        heartRateCallbacks.remove(heartRateData.uuid)
+                    } else {
+                        log(
+                            "RollaBandHealthDataHostApiImpl",
+                            "No callback found for heart rate data $heartRateData"
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     override fun getHeartRateData(
         uuid: String,
@@ -25,28 +58,50 @@ class RollaBandHealthDataHostApiImpl(
         passiveLastSyncedTimestamp: Long,
         callback: (Result<RollaBandHeartRateSyncResponse>) -> Unit
     ) {
+        if (heartRateCallbacks.containsKey(uuid)) {
+            callback.invoke(Result.failure(Throwable("Heart rate data is already fetching for this device")))
+            return
+        }
+        heartRateCallbacks[uuid] = callback
+
         scope.launch {
             try {
-                // TODO: Implement using bleManager.readBandHeartRate(uuid, timestamps)
-                // Listen to bleManager.getRollaBandHeartRateFlow() for response
-                val response = RollaBandHeartRateSyncResponse(
-                    heartRates = emptyList(),
-                    activityLastSyncedBlockTimestamp = activityLastSyncedBlockTimestamp,
-                    activityLastSyncedEntryTimestamp = activityLastSyncedEntryTimestamp,
-                    passiveLastSyncedTimestamp = passiveLastSyncedTimestamp,
+                val result = bleManager.readBandHeartRate(
+                    uuid,
+                    activityLastSyncedBlockTimestamp,
+                    activityLastSyncedEntryTimestamp,
+                    passiveLastSyncedTimestamp
                 )
                 withContext(Dispatchers.Main) {
-                    callback(Result.success(response))
+                    if (result.isSuccess()) {
+                        // Don't invoke immediately, wait for flow data
+                    } else {
+                        callback(Result.failure(Throwable(result.errorMessage)))
+                        heartRateCallbacks.remove(uuid)
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     callback(Result.failure(e))
+                    heartRateCallbacks.remove(uuid)
                 }
             }
         }
     }
 
+    fun convertToPigeonHeartRateData(heartRateData: TotalHeartRateData): RollaBandHeartRateSyncResponse {
+        return RollaBandHeartRateSyncResponse(
+            heartRates = heartRateData.heartRates.map {
+                RollaBandHeartRate(it.timestamp, it.heartRate.toLong())
+            },
+            activityLastSyncedBlockTimestamp = heartRateData.activityLastBlockTimestamp,
+            activityLastSyncedEntryTimestamp = heartRateData.activityLastEntryTimestamp,
+            passiveLastSyncedTimestamp = heartRateData.passiveLastBlockTimestamp
+        )
+    }
+
     fun cleanup() {
+        heartRateCallbacks.clear()
         scope.cancel()
     }
 }

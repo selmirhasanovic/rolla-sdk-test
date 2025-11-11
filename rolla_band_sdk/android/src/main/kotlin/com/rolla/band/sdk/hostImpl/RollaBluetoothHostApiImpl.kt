@@ -13,15 +13,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// NOTE: This is a POC implementation. For production, integrate with bluetoothSdk module
-// The actual implementation should use app.rolla.bluetoothSdk.BleManager
 @SuppressLint("MissingPermission")
 class RollaBluetoothHostApiImpl(
+    private val bleManager: BleManager,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) : RollaBluetoothHostApi {
-
-    // TODO: Inject BleManager from bluetoothSdk
-    // private val bleManager: BleManager
 
     override fun scanForDevices(
         deviceTypes: List<DeviceType>,
@@ -30,9 +26,16 @@ class RollaBluetoothHostApiImpl(
     ) {
         scope.launch {
             try {
-                // TODO: Implement using bleManager.startScan()
+                log("RollaBluetoothHostApiImpl", "Scanning for device types: ${deviceTypes.joinToString()}")
+                val sdkDeviceTypes = deviceTypes.map { convertToSdkDeviceType(it) }.toSet()
+                bleManager.setScanDuration(scanDuration)
+                val result = bleManager.startScan(deviceTypes = sdkDeviceTypes)
                 withContext(Dispatchers.Main) {
-                    callback(Result.success(Unit))
+                    if (result.isSuccess()) {
+                        callback(Result.success(Unit))
+                    } else {
+                        callback(Result.failure(Throwable(result.errorMessage)))
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -45,9 +48,14 @@ class RollaBluetoothHostApiImpl(
     override fun stopScanning(callback: (Result<Unit>) -> Unit) {
         scope.launch {
             try {
-                // TODO: Implement using bleManager.stopScan()
+                log("RollaBluetoothHostApiImpl", "Stopping scan")
+                val result = bleManager.stopScan()
                 withContext(Dispatchers.Main) {
-                    callback(Result.success(Unit))
+                    if (result.isSuccess()) {
+                        callback(Result.success(Unit))
+                    } else {
+                        callback(Result.failure(Throwable(result.errorMessage)))
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -60,9 +68,14 @@ class RollaBluetoothHostApiImpl(
     override fun connectToDevice(uuid: String, callback: (Result<Boolean>) -> Unit) {
         scope.launch {
             try {
-                // TODO: Implement using bleManager.connectToBleDevice(uuid)
+                log("RollaBluetoothHostApiImpl", "Connecting to device: $uuid")
+                val result = bleManager.connectToBleDevice(uuid)
                 withContext(Dispatchers.Main) {
-                    callback(Result.success(true))
+                    if (result.isSuccess()) {
+                        callback(Result.success(true))
+                    } else {
+                        callback(Result.failure(Throwable(result.errorMessage)))
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -75,7 +88,8 @@ class RollaBluetoothHostApiImpl(
     override fun disconnectFromDevice(uuid: String, callback: (Result<Boolean>) -> Unit) {
         scope.launch {
             try {
-                // TODO: Implement using bleManager.disconnectFromDevice(uuid)
+                log("RollaBluetoothHostApiImpl", "Disconnecting from device: $uuid")
+                bleManager.disconnectFromDevice(uuid)
                 withContext(Dispatchers.Main) {
                     callback(Result.success(true))
                 }
@@ -90,9 +104,15 @@ class RollaBluetoothHostApiImpl(
     override fun disconnectAndRemoveBond(uuid: String, callback: (Result<Boolean>) -> Unit) {
         scope.launch {
             try {
-                // TODO: Implement using bleManager.disconnectFromDevice() + removeBond()
+                log("RollaBluetoothHostApiImpl", "Disconnecting and removing bond for: $uuid")
+                bleManager.disconnectFromDevice(uuid)
+                val result = bleManager.removeBond(uuid)
                 withContext(Dispatchers.Main) {
-                    callback(Result.success(true))
+                    if (result.isSuccess()) {
+                        callback(Result.success(true))
+                    } else {
+                        callback(Result.failure(Throwable(result.errorMessage)))
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -106,18 +126,12 @@ class RollaBluetoothHostApiImpl(
         uuid: String,
         callback: (Result<ConnectionState>) -> Unit
     ) {
-        scope.launch {
-            try {
-                // TODO: Implement using bleManager.getConnectionState(uuid)
-                withContext(Dispatchers.Main) {
-                    callback(Result.success(ConnectionState.DISCONNECTED))
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    callback(Result.failure(e))
-                }
-            }
-        }
+        log("RollaBluetoothHostApiImpl", "Checking connection state for $uuid")
+        bleManager.getConnectionState(uuid, onSuccess = { state ->
+            callback(Result.success(convertToPigeonConnectionState(state)))
+        }, onError = { error ->
+            callback(Result.failure(error))
+        })
     }
 
     override fun checkBluetoothState(callback: (Result<BluetoothState>) -> Unit) {
@@ -139,6 +153,22 @@ class RollaBluetoothHostApiImpl(
                     callback(Result.failure(e))
                 }
             }
+        }
+    }
+
+    private fun convertToPigeonConnectionState(state: DeviceConnectionState): ConnectionState {
+        return when(state) {
+            DeviceConnectionState.CONNECTED -> ConnectionState.CONNECTED
+            DeviceConnectionState.CONNECTING -> ConnectionState.CONNECTING
+            DeviceConnectionState.DISCONNECTED -> ConnectionState.DISCONNECTED
+            DeviceConnectionState.DISCONNECTING -> ConnectionState.DISCONNECTED
+        }
+    }
+
+    private fun convertToSdkDeviceType(pigeonType: DeviceType): app.rolla.bluetoothSdk.device.DeviceType {
+        return when (pigeonType) {
+            DeviceType.ROLLA_BAND -> app.rolla.bluetoothSdk.device.DeviceType.ROLLA_BAND
+            DeviceType.OTHER -> app.rolla.bluetoothSdk.device.DeviceType.HEART_RATE
         }
     }
 
