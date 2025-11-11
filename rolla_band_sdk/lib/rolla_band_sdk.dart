@@ -19,13 +19,24 @@ import 'package:rolla_band_sdk/src/models/bluetooth_device.dart';
 import 'package:rolla_band_sdk/src/models/heart_rate_data.dart';
 
 class RollaBandSDK {
+  static RollaBandSDK? _instance;
+  
+  static RollaBandSDK get instance {
+    _instance ??= RollaBandSDK._();
+    return _instance!;
+  }
+  
+  RollaBandSDK._();
+  
   late final BluetoothManager _bluetoothManager;
   late final BandPairing _bandPairing;
   late final HealthDataSync _healthDataSync;
   late final BackendClient _backendClient;
   RollaBandSDKConfig? _config;
+  bool _initialized = false;
 
   Future<void> initialize(RollaBandSDKConfig config) async {
+    if (_initialized) return;
     _config = config;
     _bluetoothManager = BluetoothManager();
     _backendClient = BackendClient(
@@ -39,6 +50,7 @@ class RollaBandSDK {
     _healthDataSync = HealthDataSync(
       healthApi: pigeon.RollaBandHealthDataHostApi(),
     );
+    _initialized = true;
   }
 
   Future<void> scanForDevices({List<pigeon.DeviceType> deviceTypes = const [pigeon.DeviceType.rollaBand]}) async {
