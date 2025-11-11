@@ -16,78 +16,26 @@ class BandPairing {
 
   /// Pairs a device with the current user.
   /// Flow:
-  /// 1. Ensure device is connected
+  /// 1. Validate MAC address format
   /// 2. Store band MAC address to backend (associates device with user account)
-  /// 3. Optionally update user data on the band
+  /// The backend API call is immediate and doesn't require device connection verification.
   Future<void> pairDevice(String uuid) async {
     print('[BandPairing] Starting pairing for device: $uuid');
     
-    // 1. Validate MAC address format first
+    // 1. Validate MAC address format
     if (!_isValidMacAddress(uuid)) {
       print('[BandPairing] ✗ Invalid MAC address format: $uuid');
       throw Exception('Invalid device UUID/MAC address format: $uuid');
     }
-    print('[BandPairing] ✓ MAC address format valid');
+    print('[BandPairing] ✓ MAC address format valid: $uuid');
     
-    // 2. Check if device is connected (with timeout)
-    print('[BandPairing] Checking connection state...');
-    ConnectionState connectionState;
-    try {
-      connectionState = await _bluetoothApi.checkConnectionState(uuid)
-          .timeout(const Duration(seconds: 5));
-      print('[BandPairing] Connection state: $connectionState');
-    } catch (e) {
-      print('[BandPairing] ✗ Error checking connection state: $e');
-      throw Exception('Failed to check device connection state: $e');
-    }
-    
-    if (connectionState != pigeon.ConnectionState.connected) {
-      print('[BandPairing] Device not connected (state: $connectionState), attempting to connect...');
-      try {
-        final connected = await _bluetoothApi.connectToDevice(uuid)
-            .timeout(const Duration(seconds: 10));
-        print('[BandPairing] Connect call returned: $connected');
-        
-        if (!connected) {
-          throw Exception('Failed to connect to device. Please ensure the device is powered on and in range.');
-        }
-        
-        // Wait for connection to stabilize and verify
-        print('[BandPairing] Waiting for connection to stabilize...');
-        for (int i = 0; i < 10; i++) {
-          await Future.delayed(const Duration(milliseconds: 500));
-          try {
-            final newState = await _bluetoothApi.checkConnectionState(uuid)
-                .timeout(const Duration(seconds: 2));
-            print('[BandPairing] Connection check $i: $newState');
-            if (newState == pigeon.ConnectionState.connected) {
-              print('[BandPairing] ✓ Device connected successfully');
-              break;
-            }
-            if (i == 9) {
-              throw Exception('Device connection timeout. Please try again.');
-            }
-          } catch (e) {
-            print('[BandPairing] Connection check error: $e');
-            if (i == 9) {
-              throw Exception('Failed to verify device connection: $e');
-            }
-          }
-        }
-      } catch (e) {
-        print('[BandPairing] ✗ Connection error: $e');
-        rethrow;
-      }
-    } else {
-      print('[BandPairing] ✓ Device already connected');
-    }
-    
-    // 3. Store band to backend (this associates the device with the user account)
-    print('[BandPairing] Storing band to backend...');
+    // 2. Store band to backend (this associates the device with the user account)
+    // This is an immediate API call - no need to verify BLE connection first
+    print('[BandPairing] Calling backend API to pair band...');
     try {
       await _backendClient.storeBand(uuid)
           .timeout(const Duration(seconds: 10));
-      print('[BandPairing] ✓ Band stored to backend successfully');
+      print('[BandPairing] ✓ Band paired successfully with user account');
     } catch (e) {
       print('[BandPairing] ✗ Backend store error: $e');
       final errorMsg = e.toString().toLowerCase();
@@ -96,6 +44,9 @@ class BandPairing {
       }
       if (errorMsg.contains('connection refused') || errorMsg.contains('failed host lookup')) {
         throw Exception('Cannot reach backend server. Check your network connection and backend URL.');
+      }
+      if (errorMsg.contains('timeout')) {
+        throw Exception('Backend request timed out. Please check your network connection.');
       }
       rethrow;
     }
