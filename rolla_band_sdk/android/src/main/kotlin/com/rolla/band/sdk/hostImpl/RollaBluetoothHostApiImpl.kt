@@ -2,6 +2,9 @@ package com.rolla.band.sdk.hostImpl
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
+import app.rolla.bluetoothSdk.BleManager
+import app.rolla.bluetoothSdk.device.DeviceConnectionState
+import app.rolla.bluetoothSdk.utils.extensions.log
 import com.rolla.band.sdk.generated.BluetoothState
 import com.rolla.band.sdk.generated.ConnectionState
 import com.rolla.band.sdk.generated.DeviceType
