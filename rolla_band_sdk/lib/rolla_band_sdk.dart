@@ -113,11 +113,16 @@ class RollaBandSDK {
     
     print('[SDK] Default timestamp (start of day UTC): $defaultFromMs (${dayStartUtc.toIso8601String()})');
 
-    // 1. Get last sync timestamps from backend (if available)
-    print('[SDK] Fetching timestamps from backend...');
+    // 1. Get last sync timestamps from backend (if available, skip if backend not configured)
+    print('[SDK] Fetching timestamps from backend (optional)...');
     BandTimestamps timestamps = const BandTimestamps();
     try {
-      timestamps = await _backendClient.getBandTimestamps();
+      timestamps = await _backendClient.getBandTimestamps()
+          .timeout(const Duration(seconds: 3))
+          .catchError((e) {
+        print('[SDK] Could not fetch timestamps from backend (will use defaults): $e');
+        return const BandTimestamps();
+      });
       print('[SDK] Received timestamps:');
       print('[SDK]   activityHrLastBlock: ${timestamps.activityHrLastBlock}');
       print('[SDK]   activityHrLastEntry: ${timestamps.activityHrLastEntry}');
@@ -151,23 +156,31 @@ class RollaBandSDK {
     print('[SDK]   passiveLastTimestamp: ${syncResult.passiveLastSyncedTimestamp}');
 
     // 3. Upload to backend if there's new data (skip if backend not configured or fails)
+    // This is completely optional - we return the data regardless
     if (syncResult.heartRates.isNotEmpty) {
       try {
-        print('[SDK] Uploading ${syncResult.heartRates.length} entries to backend...');
+        print('[SDK] Attempting to upload ${syncResult.heartRates.length} entries to backend (optional)...');
         await _backendClient.sendHeartRate(
           data: syncResult.heartRates,
           activityLastBlock: syncResult.activityLastSyncedBlockTimestamp,
           activityLastEntry: syncResult.activityLastSyncedEntryTimestamp,
           passiveLastTimestamp: syncResult.passiveLastSyncedTimestamp,
-        );
+        )
+            .timeout(const Duration(seconds: 5))
+            .catchError((e) {
+          print('[SDK] ⚠ Upload to backend failed (continuing with local data): $e');
+          return; // Continue without throwing
+        });
         print('[SDK] ✓ Upload successful');
       } catch (e) {
         print('[SDK] ⚠ Upload to backend failed (continuing with local data): $e');
+        // Don't rethrow - we want to return the data regardless
       }
     } else {
       print('[SDK] No new data to upload');
     }
 
+    print('[SDK] Returning ${syncResult.heartRates.length} heart rate entries');
     return syncResult.heartRates;
   }
 

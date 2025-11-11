@@ -194,12 +194,18 @@ class BackendClient {
       debugPrint('[BackendClient] Response status: ${response.statusCode}');
       debugPrint('[BackendClient] Response data: $body');
       
-      if (body is Map && body['success'] != true) {
-        final reason = (body['reason'] as String?) ?? 'Heart rate upload failed';
-        debugPrint('[BackendClient] Upload failed: $reason');
-        throw Exception(reason);
+      if (response.statusCode != null && response.statusCode! >= 200 && response.statusCode! < 300) {
+        if (body is Map && body['success'] != true) {
+          final reason = (body['reason'] as String?) ?? 'Heart rate upload failed';
+          debugPrint('[BackendClient] Upload failed: $reason');
+          throw Exception(reason);
+        }
+        debugPrint('[BackendClient] ✓ Upload successful');
+      } else {
+        final reason = (body is Map ? (body['reason'] as String?) : null) ?? 'Heart rate upload failed';
+        debugPrint('[BackendClient] Upload failed with status ${response.statusCode}: $reason');
+        throw Exception('Upload failed (${response.statusCode}): $reason');
       }
-      debugPrint('[BackendClient] ✓ Upload successful');
     } on DioException catch (e) {
       debugPrint('[BackendClient] DioException uploading heart rate: ${e.message}');
       debugPrint('[BackendClient] Error type: ${e.type}');
