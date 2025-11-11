@@ -34,9 +34,10 @@ class HealthDataSync {
       passiveLastSyncedTimestamp,
     );
 
+    // Band returns timestamps in milliseconds, convert to seconds for consistency with backend
     final heartRates = response.heartRates.map((hr) {
       return HeartRateData(
-        timestamp: hr.timestamp,
+        timestamp: hr.timestamp ~/ 1000, // Convert ms to seconds
         heartRate: hr.hr,
       );
     }).toList();

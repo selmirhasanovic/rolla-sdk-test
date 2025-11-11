@@ -35,10 +35,11 @@ class BandTimestamps {
       return null;
     }
 
+    // Backend returns timestamps in seconds, convert to milliseconds for band API
     return BandTimestamps(
-      activityHrLastBlock: _toInt(ts['activity_hr_last_block']),
-      activityHrLastEntry: _toInt(ts['activity_hr_last_entry']),
-      passiveHrLastTimestamp: _toInt(ts['passive_hr_last_timestamp']),
+      activityHrLastBlock: _toInt(ts['activity_hr_last_block']) != null ? _toInt(ts['activity_hr_last_block'])! * 1000 : null,
+      activityHrLastEntry: _toInt(ts['activity_hr_last_entry']) != null ? _toInt(ts['activity_hr_last_entry'])! * 1000 : null,
+      passiveHrLastTimestamp: _toInt(ts['passive_hr_last_timestamp']) != null ? _toInt(ts['passive_hr_last_timestamp'])! * 1000 : null,
       stepsLastBlock: _toInt(ts['steps_last_block']),
       stepsLastEntry: _toInt(ts['steps_last_entry']),
       activeKcalLastTimestamp: _toInt(ts['active_kcal_last_timestamp']),

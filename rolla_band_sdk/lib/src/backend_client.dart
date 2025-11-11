@@ -132,6 +132,7 @@ class BackendClient {
   }) async {
     if (data.isEmpty) return;
     
+    // HeartRateData.timestamp is in seconds, backend expects seconds
     final heartRateData = data.map((hr) => {
       'timestamp': hr.timestamp,
       'hr': hr.heartRate,
@@ -141,9 +142,10 @@ class BackendClient {
       'heart_rate_data': jsonEncode(heartRateData),
     };
     
-    if (activityLastBlock != null) requestData['activity_hr_last_block'] = activityLastBlock;
-    if (activityLastEntry != null) requestData['activity_hr_last_entry'] = activityLastEntry;
-    if (passiveLastTimestamp != null) requestData['passive_hr_last_timestamp'] = passiveLastTimestamp;
+    // Band returns timestamps in milliseconds, backend expects seconds
+    if (activityLastBlock != null) requestData['activity_hr_last_block'] = activityLastBlock ~/ 1000;
+    if (activityLastEntry != null) requestData['activity_hr_last_entry'] = activityLastEntry ~/ 1000;
+    if (passiveLastTimestamp != null) requestData['passive_hr_last_timestamp'] = passiveLastTimestamp ~/ 1000;
     
     final response = await _dio.post('/health/heartrate/add', data: requestData);
     final dynamic body = response.data;
