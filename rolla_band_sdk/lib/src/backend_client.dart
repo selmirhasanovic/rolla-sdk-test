@@ -165,25 +165,53 @@ class BackendClient {
   }) async {
     if (data.isEmpty) return;
     
-    // HeartRateData.timestamp is in seconds, backend expects seconds
-    final heartRateData = data.map((hr) => {
-      'timestamp': hr.timestamp,
-      'hr': hr.heartRate,
-    }).toList();
-    
-    final Map<String, dynamic> requestData = {
-      'heart_rate_data': jsonEncode(heartRateData),
-    };
-    
-    // Band returns timestamps in milliseconds, backend expects seconds
-    if (activityLastBlock != null) requestData['activity_hr_last_block'] = activityLastBlock ~/ 1000;
-    if (activityLastEntry != null) requestData['activity_hr_last_entry'] = activityLastEntry ~/ 1000;
-    if (passiveLastTimestamp != null) requestData['passive_hr_last_timestamp'] = passiveLastTimestamp ~/ 1000;
-    
-    final response = await _dio.post('/health/heartrate/add', data: requestData);
-    final dynamic body = response.data;
-    if (body is Map && body['success'] != true) {
-      throw Exception((body['reason'] as String?) ?? 'Heart rate upload failed');
+    try {
+      debugPrint('[BackendClient] Sending ${data.length} heart rate entries to backend');
+      // HeartRateData.timestamp is in seconds, backend expects seconds
+      final heartRateData = data.map((hr) => {
+        'timestamp': hr.timestamp,
+        'hr': hr.heartRate,
+      }).toList();
+      
+      final Map<String, dynamic> requestData = {
+        'heart_rate_data': jsonEncode(heartRateData),
+      };
+      
+      // Band returns timestamps in milliseconds, backend expects seconds
+      if (activityLastBlock != null) requestData['activity_hr_last_block'] = activityLastBlock ~/ 1000;
+      if (activityLastEntry != null) requestData['activity_hr_last_entry'] = activityLastEntry ~/ 1000;
+      if (passiveLastTimestamp != null) requestData['passive_hr_last_timestamp'] = passiveLastTimestamp ~/ 1000;
+      
+      debugPrint('[BackendClient] Request data keys: ${requestData.keys}');
+      debugPrint('[BackendClient] Heart rate data count: ${heartRateData.length}');
+      if (heartRateData.isNotEmpty) {
+        debugPrint('[BackendClient] First entry: ${heartRateData.first}');
+        debugPrint('[BackendClient] Last entry: ${heartRateData.last}');
+      }
+      
+      final response = await _dio.post('/health/heartrate/add', data: requestData);
+      final dynamic body = response.data;
+      debugPrint('[BackendClient] Response status: ${response.statusCode}');
+      debugPrint('[BackendClient] Response data: $body');
+      
+      if (body is Map && body['success'] != true) {
+        final reason = (body['reason'] as String?) ?? 'Heart rate upload failed';
+        debugPrint('[BackendClient] Upload failed: $reason');
+        throw Exception(reason);
+      }
+      debugPrint('[BackendClient] ✓ Upload successful');
+    } on DioException catch (e) {
+      debugPrint('[BackendClient] DioException uploading heart rate: ${e.message}');
+      debugPrint('[BackendClient] Error type: ${e.type}');
+      debugPrint('[BackendClient] Response status: ${e.response?.statusCode}');
+      debugPrint('[BackendClient] Response data: ${e.response?.data}');
+      final Response<dynamic>? r = e.response;
+      if (r != null && r.data is Map) {
+        final Map<String, dynamic> data = r.data as Map<String, dynamic>;
+        final reason = (data['reason'] as String?) ?? 'Heart rate upload failed';
+        throw Exception('Upload failed (${r.statusCode}): $reason');
+      }
+      throw Exception('Heart rate upload failed: ${e.message}');
     }
   }
 
