@@ -44,6 +44,7 @@ class RollaBandSDK {
     _backendClient = BackendClient(
       baseUrl: config.backendBaseUrl,
       accessToken: config.accessToken,
+      partnerId: config.partnerId,
     );
     _bandPairing = BandPairing(
       bandApi: pigeon.BandCommandHostAPI(),

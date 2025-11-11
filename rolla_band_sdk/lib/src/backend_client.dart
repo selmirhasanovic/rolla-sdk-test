@@ -7,11 +7,17 @@ class BackendClient {
   final Dio _dio;
   final String _baseUrl;
 
-  BackendClient({required String baseUrl, required String accessToken})
-      : _baseUrl = baseUrl,
+  BackendClient({
+    required String baseUrl,
+    required String accessToken,
+    String partnerId = 'ross_dfb67c5b8525a2ff',
+  })  : _baseUrl = baseUrl,
         _dio = Dio(BaseOptions(
           baseUrl: baseUrl,
-          headers: {'Authorization': 'Bearer $accessToken'},
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Partner-ID': partnerId,
+          },
         ));
 
   Future<void> storeBand(String macAddress) async {
