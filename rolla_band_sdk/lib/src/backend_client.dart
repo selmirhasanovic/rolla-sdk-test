@@ -24,9 +24,15 @@ class BackendClient {
   Future<void> storeBand(String macAddress) async {
     try {
       print('[BackendClient] POST /api/store_user_band with mac_address: $macAddress');
+      print('[BackendClient] Base URL: $_baseUrl');
+      print('[BackendClient] Content-Type: ${Headers.formUrlEncodedContentType}');
+      
       final Response<dynamic> response = await _dio.post<dynamic>(
         '/api/store_user_band',
         data: {'mac_address': macAddress},
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+        ),
       );
       final dynamic data = response.data;
       print('[BackendClient] Response status: ${response.statusCode}');
@@ -39,15 +45,26 @@ class BackendClient {
       
       final reason = (data is Map ? (data['reason'] as String?) : null) ?? 'Store band failed';
       throw Exception(reason);
-    } on DioError catch (e) {
-      print('[BackendClient] DioError storing band: ${e.message}');
+    } on DioException catch (e) {
+      print('[BackendClient] DioException storing band: ${e.message}');
+      print('[BackendClient] Error type: ${e.type}');
+      print('[BackendClient] Request path: ${e.requestOptions.path}');
+      print('[BackendClient] Request data: ${e.requestOptions.data}');
+      print('[BackendClient] Request headers: ${e.requestOptions.headers}');
       final Response<dynamic>? r = e.response;
-      if (r != null && r.data is Map) {
-        final Map<String, dynamic> data = r.data as Map<String, dynamic>;
-        final reason = (data['reason'] as String?) ?? 'Store band failed';
-        throw Exception(reason);
+      if (r != null) {
+        print('[BackendClient] Response status: ${r.statusCode}');
+        print('[BackendClient] Response data: ${r.data}');
+        if (r.data is Map) {
+          final Map<String, dynamic> data = r.data as Map<String, dynamic>;
+          final reason = (data['reason'] as String?) ?? 'Store band failed';
+          throw Exception(reason);
+        }
       }
-      throw Exception('Store band failed: ${r?.statusCode}');
+      throw Exception('Store band failed: ${r?.statusCode ?? e.message}');
+    } catch (e) {
+      print('[BackendClient] Unexpected error: $e');
+      rethrow;
     }
   }
 
@@ -85,8 +102,8 @@ class BackendClient {
       // If response is not a map, return empty timestamps for initial sync
       print('[BackendClient] Response is not a map, returning empty timestamps (initial sync)');
       return const BandTimestamps();
-    } on DioError catch (e) {
-      print('[BackendClient] DioError getting timestamps: ${e.message}');
+    } on DioException catch (e) {
+      print('[BackendClient] DioException getting timestamps: ${e.message}');
       print('[BackendClient] Error type: ${e.type}');
       final Response<dynamic>? r = e.response;
       
