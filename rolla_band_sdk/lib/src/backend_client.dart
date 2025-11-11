@@ -31,20 +31,70 @@ class BackendClient {
       final dynamic data = response.data;
       print('[BackendClient] Response status: ${response.statusCode}');
       print('[BackendClient] Response data: $data');
-      if (data is Map && data['success'] == true) {
-        final timestamps = BandTimestamps.fromResponse(data as Map<String, dynamic>);
-        print('[BackendClient] Parsed timestamps: activityHrLastBlock=${timestamps.activityHrLastBlock}, activityHrLastEntry=${timestamps.activityHrLastEntry}, passiveHrLastTimestamp=${timestamps.passiveHrLastTimestamp}');
-        return timestamps;
+      
+      if (data == null) {
+        print('[BackendClient] Response data is null, returning empty timestamps (initial sync)');
+        return const BandTimestamps();
       }
-      throw Exception('Failed to load band timestamps: ${response.statusCode}');
+      
+      if (data is Map) {
+        if (data['success'] == true) {
+          final timestamps = BandTimestamps.fromResponse(data as Map<String, dynamic>);
+          print('[BackendClient] Parsed timestamps: activityHrLastBlock=${timestamps.activityHrLastBlock}, activityHrLastEntry=${timestamps.activityHrLastEntry}, passiveHrLastTimestamp=${timestamps.passiveHrLastTimestamp}');
+          return timestamps;
+        } else {
+          // If success is false but we got a response, might be initial sync
+          final reason = data['reason'] as String?;
+          print('[BackendClient] Response success=false, reason: $reason');
+          if (reason != null && !reason.toLowerCase().contains('denied')) {
+            // Not an access denied error, might be no timestamps yet
+            print('[BackendClient] Returning empty timestamps (initial sync scenario)');
+            return const BandTimestamps();
+          }
+          throw Exception(reason ?? 'Failed to load band timestamps');
+        }
+      }
+      
+      // If response is not a map, return empty timestamps for initial sync
+      print('[BackendClient] Response is not a map, returning empty timestamps (initial sync)');
+      return const BandTimestamps();
     } on DioError catch (e) {
-      print('[BackendClient] Error getting timestamps: ${e.message}');
+      print('[BackendClient] DioError getting timestamps: ${e.message}');
+      print('[BackendClient] Error type: ${e.type}');
       final Response<dynamic>? r = e.response;
-      if (r != null && r.data is Map) {
-        final Map<String, dynamic> data = r.data as Map<String, dynamic>;
-        throw Exception((data['reason'] as String?) ?? 'Failed to load band timestamps');
+      
+      // If it's a 404 or similar, might mean no timestamps exist yet (initial sync)
+      if (r != null) {
+        print('[BackendClient] Response status: ${r.statusCode}');
+        print('[BackendClient] Response data: ${r.data}');
+        
+        if (r.statusCode == 404 || (r.data is Map && (r.data as Map)['success'] == false)) {
+          print('[BackendClient] No timestamps found (404 or success=false), returning empty timestamps (initial sync)');
+          return const BandTimestamps();
+        }
+        
+        if (r.data is Map) {
+          final Map<String, dynamic> data = r.data as Map<String, dynamic>;
+          final reason = data['reason'] as String?;
+          // Only throw if it's an actual error, not just missing timestamps
+          if (reason != null && reason.toLowerCase().contains('denied')) {
+            throw Exception(reason);
+          }
+          // Otherwise, treat as initial sync
+          print('[BackendClient] Returning empty timestamps (initial sync scenario)');
+          return const BandTimestamps();
+        }
       }
-      throw Exception('Failed to load band timestamps: ${r?.statusCode}');
+      
+      // For network errors or other issues, still try to continue with empty timestamps
+      // This allows the sync to proceed with default timestamps
+      print('[BackendClient] Network/connection error, returning empty timestamps to allow sync with defaults');
+      return const BandTimestamps();
+    } catch (e) {
+      print('[BackendClient] Unexpected error: $e');
+      // Return empty timestamps to allow sync to proceed with defaults
+      print('[BackendClient] Returning empty timestamps (initial sync)');
+      return const BandTimestamps();
     }
   }
 
