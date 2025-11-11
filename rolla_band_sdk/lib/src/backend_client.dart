@@ -48,17 +48,22 @@ class BackendClient {
       print('[BackendClient] Request path: ${e.requestOptions.path}');
       print('[BackendClient] Request data: ${e.requestOptions.data}');
       print('[BackendClient] Request headers: ${e.requestOptions.headers}');
+      print('[BackendClient] Full request URL: ${e.requestOptions.uri}');
       final Response<dynamic>? r = e.response;
       if (r != null) {
         print('[BackendClient] Response status: ${r.statusCode}');
         print('[BackendClient] Response data: ${r.data}');
+        print('[BackendClient] Response headers: ${r.headers}');
         if (r.data is Map) {
           final Map<String, dynamic> data = r.data as Map<String, dynamic>;
           final reason = (data['reason'] as String?) ?? 'Store band failed';
+          print('[BackendClient] Extracted reason: $reason');
           throw Exception(reason);
         }
+        // If response is not a Map, include the raw response in the error
+        throw Exception('Store band failed (${r.statusCode}): ${r.data}');
       }
-      throw Exception('Store band failed: ${r?.statusCode ?? e.message}');
+      throw Exception('Store band failed: ${e.message}');
     } catch (e) {
       print('[BackendClient] Unexpected error: $e');
       rethrow;
