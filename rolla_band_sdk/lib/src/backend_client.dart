@@ -26,13 +26,19 @@ class BackendClient {
 
   Future<BandTimestamps> getBandTimestamps() async {
     try {
+      print('[BackendClient] GET /api/band_timestamps');
       final Response<dynamic> response = await _dio.get<dynamic>('/api/band_timestamps');
       final dynamic data = response.data;
+      print('[BackendClient] Response status: ${response.statusCode}');
+      print('[BackendClient] Response data: $data');
       if (data is Map && data['success'] == true) {
-        return BandTimestamps.fromResponse(data as Map<String, dynamic>);
+        final timestamps = BandTimestamps.fromResponse(data as Map<String, dynamic>);
+        print('[BackendClient] Parsed timestamps: activityHrLastBlock=${timestamps.activityHrLastBlock}, activityHrLastEntry=${timestamps.activityHrLastEntry}, passiveHrLastTimestamp=${timestamps.passiveHrLastTimestamp}');
+        return timestamps;
       }
       throw Exception('Failed to load band timestamps: ${response.statusCode}');
     } on DioError catch (e) {
+      print('[BackendClient] Error getting timestamps: ${e.message}');
       final Response<dynamic>? r = e.response;
       if (r != null && r.data is Map) {
         final Map<String, dynamic> data = r.data as Map<String, dynamic>;

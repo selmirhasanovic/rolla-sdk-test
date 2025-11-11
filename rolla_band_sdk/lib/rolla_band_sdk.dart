@@ -79,34 +79,60 @@ class RollaBandSDK {
   /// 2. Fetch new data from band since last timestamps
   /// 3. Upload data to backend with updated timestamps
   Future<List<HeartRateData>> syncHeartRate(String uuid) async {
+    print('[SDK] Starting heart rate sync for device: $uuid');
+    
     // Get default timestamp (start of current day in UTC)
     final DateTime nowLocal = DateTime.now();
     final DateTime localMidnight = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
     final DateTime dayStartUtc = localMidnight.toUtc();
     final int defaultFromMs = dayStartUtc.millisecondsSinceEpoch;
+    
+    print('[SDK] Default timestamp (start of day UTC): $defaultFromMs (${dayStartUtc.toIso8601String()})');
 
     // 1. Get last sync timestamps from backend
+    print('[SDK] Fetching timestamps from backend...');
     final BandTimestamps timestamps = await _backendClient.getBandTimestamps();
+    print('[SDK] Received timestamps:');
+    print('[SDK]   activityHrLastBlock: ${timestamps.activityHrLastBlock}');
+    print('[SDK]   activityHrLastEntry: ${timestamps.activityHrLastEntry}');
+    print('[SDK]   passiveHrLastTimestamp: ${timestamps.passiveHrLastTimestamp}');
+    
     final int aBlock = timestamps.activityHrLastBlock ?? defaultFromMs;
     final int aEntry = timestamps.activityHrLastEntry ?? defaultFromMs;
     final int pTs = timestamps.passiveHrLastTimestamp ?? defaultFromMs;
+    
+    print('[SDK] Using timestamps for sync:');
+    print('[SDK]   activityBlock: $aBlock (${timestamps.activityHrLastBlock == null ? "DEFAULT" : "FROM_BACKEND"})');
+    print('[SDK]   activityEntry: $aEntry (${timestamps.activityHrLastEntry == null ? "DEFAULT" : "FROM_BACKEND"})');
+    print('[SDK]   passiveTimestamp: $pTs (${timestamps.passiveHrLastTimestamp == null ? "DEFAULT" : "FROM_BACKEND"})');
 
     // 2. Fetch new data from band since last timestamps
+    print('[SDK] Fetching heart rate data from band...');
     final syncResult = await _healthDataSync.syncHeartRate(
       uuid,
       activityLastSyncedBlockTimestamp: aBlock,
       activityLastSyncedEntryTimestamp: aEntry,
       passiveLastSyncedTimestamp: pTs,
     );
+    
+    print('[SDK] Received ${syncResult.heartRates.length} heart rate entries from band');
+    print('[SDK] Updated timestamps from band:');
+    print('[SDK]   activityLastBlock: ${syncResult.activityLastSyncedBlockTimestamp}');
+    print('[SDK]   activityLastEntry: ${syncResult.activityLastSyncedEntryTimestamp}');
+    print('[SDK]   passiveLastTimestamp: ${syncResult.passiveLastSyncedTimestamp}');
 
     // 3. Upload to backend if there's new data
     if (syncResult.heartRates.isNotEmpty) {
+      print('[SDK] Uploading ${syncResult.heartRates.length} entries to backend...');
       await _backendClient.sendHeartRate(
         data: syncResult.heartRates,
         activityLastBlock: syncResult.activityLastSyncedBlockTimestamp,
         activityLastEntry: syncResult.activityLastSyncedEntryTimestamp,
         passiveLastTimestamp: syncResult.passiveLastSyncedTimestamp,
       );
+      print('[SDK] ✓ Upload successful');
+    } else {
+      print('[SDK] No new data to upload');
     }
 
     return syncResult.heartRates;
