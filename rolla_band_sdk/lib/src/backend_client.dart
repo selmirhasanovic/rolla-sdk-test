@@ -14,6 +14,7 @@ class BackendClient {
   })  : _baseUrl = baseUrl,
         _dio = Dio(BaseOptions(
           baseUrl: baseUrl,
+          contentType: Headers.formUrlEncodedContentType,
           headers: {
             'Authorization': 'Bearer $accessToken',
             'Partner-ID': partnerId,
