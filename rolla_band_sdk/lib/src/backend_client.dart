@@ -32,13 +32,15 @@ class BackendClient {
       debugPrint('[BackendClient] Headers: ${_dio.options.headers}');
       debugPrint('[BackendClient] Dio options contentType: ${_dio.options.contentType}');
       
-      // Use FormData to ensure proper form-urlencoded encoding
-      final formData = FormData.fromMap({'mac_address': macAddress});
-      debugPrint('[BackendClient] FormData created: ${formData.fields}');
-      
       final Response<dynamic> response = await _dio.post<dynamic>(
         '/api/store_user_band',
-        data: formData,
+        data: {'mac_address': macAddress},
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          headers: {
+            'Content-Type': Headers.formUrlEncodedContentType,
+          },
+        ),
       );
       final dynamic data = response.data;
       debugPrint('[BackendClient] Response status: ${response.statusCode}');
